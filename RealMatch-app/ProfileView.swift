@@ -17,6 +17,9 @@ struct ProfileView: View {
     @State private var images: [UIImage] = []
     @State private var imageURLs: [String] = []
     
+    @State private var name = ""
+    @State private var age = ""
+    
     var body: some View {
         
         VStack(spacing: 20) {
@@ -24,6 +27,16 @@ struct ProfileView: View {
             Text("Profile")
                 .font(.largeTitle)
                 .bold()
+            
+            // 👇 USER INFO
+            VStack(spacing: 5) {
+                Text(name)
+                    .font(.title2)
+                    .bold()
+                
+                Text(age)
+                    .foregroundColor(.gray)
+            }
             
             PhotosPicker(selection: $selectedItems,
                          maxSelectionCount: 4,
@@ -89,6 +102,7 @@ struct ProfileView: View {
         }
         
         .onAppear {
+            loadUser()
             loadImages()
         }
         
@@ -120,7 +134,35 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - Upload Images
+    // MARK: - LOAD USER (NAME + AGE)
+    func loadUser() {
+        
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let db = Database.database().reference()
+        
+        db.child("users")
+            .child(userId)
+            .observeSingleEvent(of: .value) { snapshot in
+                
+                guard let data = snapshot.value as? [String: Any] else {
+                    return
+                }
+                
+                self.name = data["name"] as? String ?? ""
+                
+                if let timestamp = data["birthDate"] as? Double {
+                    
+                    let date = Date(timeIntervalSince1970: timestamp)
+                    
+                    let years = Calendar.current.dateComponents([.year], from: date, to: Date()).year ?? 0
+                    
+                    self.age = "\(years) år"
+                }
+            }
+    }
+    
+    // MARK: - UPLOAD IMAGES
     func uploadImages() {
         
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -162,7 +204,6 @@ struct ProfileView: View {
         
         group.notify(queue: .main) {
             
-            // 🔥 FIX: skriv inte över hela user-objektet
             db.child("users")
                 .child(userId)
                 .updateChildValues([
@@ -170,12 +211,10 @@ struct ProfileView: View {
                 ])
             
             self.imageURLs = uploadedURLs
-            
-            print("Bilder uppdaterade utan att ta bort email")
         }
     }
     
-    // MARK: - Load Images
+    // MARK: - LOAD IMAGES
     func loadImages() {
         
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -196,9 +235,7 @@ struct ProfileView: View {
                 
                 for urlString in urls {
                     
-                    guard let url = URL(string: urlString) else {
-                        continue
-                    }
+                    guard let url = URL(string: urlString) else { continue }
                     
                     URLSession.shared.dataTask(with: url) { data, _, _ in
                         
