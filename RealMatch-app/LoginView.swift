@@ -4,9 +4,9 @@
 //
 //  Created by Natali Samaan on 2026-05-16.
 //
-
 import SwiftUI
 import FirebaseAuth
+import FirebaseDatabase
 
 struct LoginView: View {
     
@@ -68,21 +68,50 @@ struct LoginView: View {
             Auth.auth().signIn(withEmail: email, password: password) { result, error in
                 
                 if let error = error {
+                    print("LOGIN ERROR:", error.localizedDescription)
                     errorMessage = error.localizedDescription
                     return
                 }
                 
+                print("LOGIN SUCCESS")
                 isLoggedIn = true
             }
             
         } else {
             
+            print("STARTING REGISTRATION...")
+            
             Auth.auth().createUser(withEmail: email, password: password) { result, error in
                 
                 if let error = error {
+                    print("❌ CREATE USER ERROR:", error.localizedDescription)
                     errorMessage = error.localizedDescription
                     return
                 }
+                
+                print("USER CREATED IN AUTH")
+                
+                guard let user = result?.user else {
+                    print("NO USER RETURNED")
+                    return
+                }
+                
+                print(" WRITING TO DATABASE FOR UID:", user.uid)
+                
+                let ref = Database.database().reference()
+                
+                ref.child("users")
+                    .child(user.uid)
+                    .setValue([
+                        "email": email
+                    ]) { error, _ in
+                        
+                        if let error = error {
+                            print(" DATABASE WRITE ERROR:", error.localizedDescription)
+                        } else {
+                            print(" SAVED TO REALTIME DATABASE")
+                        }
+                    }
                 
                 isLoggedIn = true
             }
