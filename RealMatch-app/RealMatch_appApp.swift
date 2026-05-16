@@ -1,17 +1,28 @@
-//
-//  RealMatch_appApp.swift
-//  RealMatch-app
-//
-//  Created by Natali Samaan on 2026-05-15.
-//
-
 import SwiftUI
+import FirebaseCore
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
+    ) -> Bool {
+        
+        FirebaseApp.configure()
+        
+        return true
+    }
+}
 
 @main
 struct RealMatch_appApp: App {
+    
+    // Kopplar in AppDelegate för Firebase
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LoginView()
         }
     }
 }
