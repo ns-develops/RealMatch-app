@@ -6,8 +6,8 @@
 import SwiftUI
 import PhotosUI
 import FirebaseAuth
-import FirebaseFirestore
 import FirebaseStorage
+import FirebaseDatabase
 
 struct ProfileView: View {
     
@@ -25,7 +25,7 @@ struct ProfileView: View {
                 .font(.largeTitle)
                 .bold()
             
-          
+            // MARK: - Image Picker
             PhotosPicker(selection: $selectedItems,
                          maxSelectionCount: 4,
                          matching: .images) {
@@ -40,17 +40,22 @@ struct ProfileView: View {
                         ZStack {
                             
                             if index < images.count {
+                                
                                 Image(uiImage: images[index])
                                     .resizable()
                                     .scaledToFill()
                                     .frame(height: 150)
                                     .clipped()
                                     .cornerRadius(12)
+                                
                             } else {
+                                
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(Color.gray.opacity(0.2))
                                     .frame(height: 150)
-                                    .overlay(Text("Bild \(index + 1)"))
+                                    .overlay(
+                                        Text("Bild \(index + 1)")
+                                    )
                             }
                         }
                     }
@@ -58,7 +63,7 @@ struct ProfileView: View {
                 .padding(.horizontal)
             }
             
-       
+            // MARK: - Save Button
             Button {
                 uploadImages()
             } label: {
@@ -71,7 +76,7 @@ struct ProfileView: View {
             }
             .padding(.horizontal)
             
-     
+            // MARK: - Logout
             Button {
                 try? Auth.auth().signOut()
                 isLoggedIn = false
@@ -86,25 +91,32 @@ struct ProfileView: View {
             .padding(.horizontal)
         }
         
-     
+        // MARK: - Load Images
         .onAppear {
             loadImages()
         }
         
+        // MARK: - Handle Selected Images
         .onChange(of: selectedItems) { newItems in
             
             images.removeAll()
             
             for item in newItems {
+                
                 item.loadTransferable(type: Data.self) { result in
                     
                     switch result {
+                        
                     case .success(let data):
-                        if let data = data, let uiImage = UIImage(data: data) {
+                        
+                        if let data = data,
+                           let uiImage = UIImage(data: data) {
+                            
                             DispatchQueue.main.async {
                                 images.append(uiImage)
                             }
                         }
+                        
                     case .failure(let error):
                         print(error)
                     }
@@ -113,19 +125,25 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - Upload to Firebase Storage + Firestore
+    // MARK: - Upload Images
     func uploadImages() {
         
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
         let storage = Storage.storage().reference()
-        let db = Firestore.firestore()
+        let db = Database.database().reference()
         
-        imageURLs.removeAll()
+        var uploadedURLs: [String] = []
+        
+        let group = DispatchGroup()
         
         for (index, image) in images.enumerated() {
             
-            guard let imageData = image.jpegData(compressionQuality: 0.6) else { continue }
+            guard let imageData = image.jpegData(compressionQuality: 0.6) else {
+                continue
+            }
+            
+            group.enter()
             
             let ref = storage.child("users/\(userId)/image\(index).jpg")
             
@@ -133,64 +151,73 @@ struct ProfileView: View {
                 
                 if let error = error {
                     print("Upload error: \(error)")
+                    group.leave()
                     return
                 }
                 
                 ref.downloadURL { url, error in
                     
                     if let url = url {
-                        
-                        imageURLs.append(url.absoluteString)
-                        
-                        db.collection("users")
-                            .document(userId)
-                            .setData([
-                                "images": imageURLs
-                            ], merge: true)
+                        uploadedURLs.append(url.absoluteString)
                     }
+                    
+                    group.leave()
                 }
             }
         }
+        
+        // MARK: - Save URLs to Realtime Database
+        group.notify(queue: .main) {
+            
+            db.child("users")
+                .child(userId)
+                .setValue([
+                    "images": uploadedURLs
+                ])
+            
+            self.imageURLs = uploadedURLs
+            
+            print("Alla bilder sparade i Realtime Database")
+        }
     }
     
-    // MARK: - Load from Firestore
+    // MARK: - Load Images From Realtime Database
     func loadImages() {
         
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        let db = Firestore.firestore()
+        let db = Database.database().reference()
         
-        db.collection("users").document(userId).getDocument { snapshot, error in
-            
-            if let error = error {
-                print("Load error: \(error)")
-                return
-            }
-            
-            guard let data = snapshot?.data(),
-                  let urls = data["images"] as? [String] else {
-                return
-            }
-            
-            self.imageURLs = urls
-            self.images = []
-            
-            for urlString in urls {
+        db.child("users")
+            .child(userId)
+            .observeSingleEvent(of: .value) { snapshot in
                 
-                guard let url = URL(string: urlString) else { continue }
+                guard let data = snapshot.value as? [String: Any],
+                      let urls = data["images"] as? [String] else {
+                    return
+                }
                 
-                URLSession.shared.dataTask(with: url) { data, _, _ in
+                self.imageURLs = urls
+                self.images.removeAll()
+                
+                for urlString in urls {
                     
-                    if let data = data,
-                       let image = UIImage(data: data) {
-                        
-                        DispatchQueue.main.async {
-                            self.images.append(image)
-                        }
+                    guard let url = URL(string: urlString) else {
+                        continue
                     }
                     
-                }.resume()
+                    URLSession.shared.dataTask(with: url) { data, _, _ in
+                        
+                        if let data = data,
+                           let image = UIImage(data: data) {
+                            
+                            DispatchQueue.main.async {
+                                self.images.append(image)
+                            }
+                        }
+                        
+                    }.resume()
+                }
             }
-        }
     }
 }
