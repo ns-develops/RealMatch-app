@@ -25,7 +25,6 @@ struct ProfileView: View {
                 .font(.largeTitle)
                 .bold()
             
-            // MARK: - Image Picker
             PhotosPicker(selection: $selectedItems,
                          maxSelectionCount: 4,
                          matching: .images) {
@@ -63,7 +62,6 @@ struct ProfileView: View {
                 .padding(.horizontal)
             }
             
-            // MARK: - Save Button
             Button {
                 uploadImages()
             } label: {
@@ -76,7 +74,6 @@ struct ProfileView: View {
             }
             .padding(.horizontal)
             
-            // MARK: - Logout
             Button {
                 try? Auth.auth().signOut()
                 isLoggedIn = false
@@ -91,12 +88,10 @@ struct ProfileView: View {
             .padding(.horizontal)
         }
         
-        // MARK: - Load Images
         .onAppear {
             loadImages()
         }
         
-        // MARK: - Handle Selected Images
         .onChange(of: selectedItems) { newItems in
             
             images.removeAll()
@@ -134,7 +129,6 @@ struct ProfileView: View {
         let db = Database.database().reference()
         
         var uploadedURLs: [String] = []
-        
         let group = DispatchGroup()
         
         for (index, image) in images.enumerated() {
@@ -166,22 +160,22 @@ struct ProfileView: View {
             }
         }
         
-        // MARK: - Save URLs to Realtime Database
         group.notify(queue: .main) {
             
+            // 🔥 FIX: skriv inte över hela user-objektet
             db.child("users")
                 .child(userId)
-                .setValue([
+                .updateChildValues([
                     "images": uploadedURLs
                 ])
             
             self.imageURLs = uploadedURLs
             
-            print("Alla bilder sparade i Realtime Database")
+            print("Bilder uppdaterade utan att ta bort email")
         }
     }
     
-    // MARK: - Load Images From Realtime Database
+    // MARK: - Load Images
     func loadImages() {
         
         guard let userId = Auth.auth().currentUser?.uid else { return }

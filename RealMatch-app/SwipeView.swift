@@ -4,12 +4,19 @@
 //
 //  Created by Natali Samaan on 2026-05-16.
 import SwiftUI
-import FirebaseFirestore
 import FirebaseAuth
+import FirebaseDatabase
+
+struct UserModel: Identifiable {
+    
+    let id: String
+    let images: [String]
+}
 
 struct SwipeView: View {
     
-    @State private var users: [[String]] = []   // varje user = 4 bilder
+    @State private var users: [UserModel] = []
+    
     @State private var currentUserIndex = 0
     @State private var currentImageIndex = 0
     
@@ -21,25 +28,34 @@ struct SwipeView: View {
             
             Spacer()
             
+            // MARK: - Empty State
             if users.isEmpty {
+                
                 Text("Inga användare")
+                    .font(.title2)
+                    .foregroundColor(.gray)
+                
             } else {
                 
-                let images = users[currentUserIndex]
+                let user = users[currentUserIndex]
+                let images = user.images
                 
                 ZStack {
                     
-                    // 🖼️ KARUSELL (4 bilder per user)
+                    // MARK: - Image Carousel
                     TabView(selection: $currentImageIndex) {
                         
                         ForEach(images.indices, id: \.self) { index in
                             
                             AsyncImage(url: URL(string: images[index])) { image in
+                                
                                 image
                                     .resizable()
                                     .scaledToFill()
+                                
                             } placeholder: {
-                                Color.gray.opacity(0.3)
+                                
+                                Color.gray.opacity(0.2)
                             }
                             .tag(index)
                             .frame(width: 350, height: 500)
@@ -51,37 +67,51 @@ struct SwipeView: View {
                     .cornerRadius(20)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.gray.opacity(0.4), lineWidth: 2)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 2)
                     )
                     
-                    // ❤️ HJÄRTA (overlay alltid synlig)
+                    // MARK: - Like Button
                     VStack {
+                        
                         Spacer()
                         
                         HStack {
+                            
                             Spacer()
                             
                             Button {
                                 toggleLike()
                             } label: {
+                                
                                 Image(systemName: liked ? "heart.fill" : "heart")
-                                    .font(.system(size: 26))
+                                    .font(.system(size: 28))
                                     .foregroundColor(liked ? .red : .gray)
-                                    .padding(14)
+                                    .padding(16)
                                     .background(Color.white)
-                                    .overlay(
-                                        Circle().stroke(Color.gray.opacity(0.6), lineWidth: 2)
-                                    )
                                     .clipShape(Circle())
-                                    .shadow(radius: 4)
+                                    .shadow(radius: 5)
                             }
-                            .padding(.trailing, 30)
+                            .padding(.trailing, 25)
                             .padding(.bottom, 20)
                         }
                     }
                 }
                 
                 Spacer()
+                
+                // MARK: - Next User Button
+                Button {
+                    nextUser()
+                } label: {
+                    
+                    Text("Nästa")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
             }
         }
         .onAppear {
@@ -89,8 +119,56 @@ struct SwipeView: View {
         }
     }
     
-    // MARK: - Toggle like
+    // MARK: - Fetch Users From Realtime Database
+    func fetchUsers() {
+        
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            return
+        }
+        
+        let ref = Database.database().reference()
+        
+        ref.child("users")
+            .observeSingleEvent(of: .value) { snapshot in
+                
+                var loadedUsers: [UserModel] = []
+                
+                for child in snapshot.children {
+                    
+                    guard let snap = child as? DataSnapshot,
+                          let data = snap.value as? [String: Any] else {
+                        continue
+                    }
+                    
+                    let userId = snap.key
+                    
+                    // MARK: - Exclude Yourself
+                    if userId == currentUserId {
+                        continue
+                    }
+                    
+                    // MARK: - Get Images
+                    if let images = data["images"] as? [String],
+                       !images.isEmpty {
+                        
+                        let user = UserModel(
+                            id: userId,
+                            images: images
+                        )
+                        
+                        loadedUsers.append(user)
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self.users = loadedUsers
+                }
+            }
+    }
+    
+    // MARK: - Toggle Like
     func toggleLike() {
+        
         liked.toggle()
         
         if liked {
@@ -98,44 +176,37 @@ struct SwipeView: View {
         }
     }
     
-    // MARK: - Fetch users (4 images per user)
-    func fetchUsers() {
-        
-        let db = Firestore.firestore()
-        
-        db.collection("users").getDocuments { snapshot, error in
-            
-            if let error = error {
-                print(error)
-                return
-            }
-            
-            guard let docs = snapshot?.documents else { return }
-            
-            var allUsers: [[String]] = []
-            
-            for doc in docs {
-                if let images = doc.data()["images"] as? [String],
-                   images.count > 0 {
-                    
-                    allUsers.append(images)
-                }
-            }
-            
-            self.users = allUsers
-        }
-    }
-    
-    // MARK: - Like save
+    // MARK: - Save Like
     func likeUser() {
         
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            return
+        }
         
-        let db = Firestore.firestore()
+        let likedUserId = users[currentUserIndex].id
         
-        db.collection("likes").addDocument(data: [
-            "from": userId,
-            "timestamp": Timestamp()
-        ])
+        let ref = Database.database().reference()
+        
+        ref.child("likes")
+            .child(currentUserId)
+            .child(likedUserId)
+            .setValue(true)
+    }
+    
+    // MARK: - Next User
+    func nextUser() {
+        
+        guard !users.isEmpty else {
+            return
+        }
+        
+        liked = false
+        currentImageIndex = 0
+        
+        if currentUserIndex < users.count - 1 {
+            currentUserIndex += 1
+        } else {
+            currentUserIndex = 0
+        }
     }
 }
