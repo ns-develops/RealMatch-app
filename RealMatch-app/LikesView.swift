@@ -4,7 +4,6 @@
 //
 //  Created by Natali Samaan on 2026-05-16.
 //
-
 import SwiftUI
 import FirebaseAuth
 import FirebaseDatabase
@@ -35,30 +34,34 @@ struct LikesView: View {
                     
                     List(matches) { match in
                         
-                        HStack(spacing: 15) {
+                        NavigationLink(destination: ChatView(match: match)) {
                             
-                            AsyncImage(url: URL(string: match.image)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                Color.gray.opacity(0.3)
-                            }
-                            .frame(width: 60, height: 60)
-                            .clipShape(Circle())
-                            
-                            VStack(alignment: .leading) {
-                                Text(match.name)
-                                    .font(.headline)
+                            HStack(spacing: 15) {
                                 
-                                Text("Ny match ❤️")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                AsyncImage(url: URL(string: match.image)) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                } placeholder: {
+                                    Color.gray.opacity(0.3)
+                                }
+                                .frame(width: 60, height: 60)
+                                .clipShape(Circle())
+                                
+                                VStack(alignment: .leading) {
+                                    Text(match.name)
+                                        .font(.headline)
+                                    
+                                    Text("Ny match ❤️")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                                
+                                Spacer()
                             }
-                            
-                            Spacer()
                         }
                     }
+                    .listStyle(PlainListStyle())
                 }
             }
             .navigationTitle("Matches")
@@ -110,7 +113,7 @@ struct LikesView: View {
         }
     }
     
-    // MARK: - FETCH USER (NAME + IMAGE)
+    // MARK: - FETCH USER
     func fetchUser(userId: String, completion: @escaping (String, String) -> Void) {
         
         let ref = Database.database().reference()
@@ -125,7 +128,6 @@ struct LikesView: View {
                 }
                 
                 let name = data["name"] as? String ?? "Okänd"
-                
                 let images = data["images"] as? [String] ?? []
                 let firstImage = images.first ?? ""
                 
