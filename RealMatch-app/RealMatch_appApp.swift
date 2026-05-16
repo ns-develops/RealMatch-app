@@ -9,7 +9,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         
         FirebaseApp.configure()
-        
         return true
     }
 }
@@ -17,12 +16,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct RealMatch_appApp: App {
     
-    // Kopplar in AppDelegate för Firebase
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
     var body: some Scene {
         WindowGroup {
-            LoginView()
+            RootView()
         }
     }
 }

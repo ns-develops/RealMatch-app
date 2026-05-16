@@ -10,6 +10,8 @@ import FirebaseAuth
 
 struct LoginView: View {
     
+    @Binding var isLoggedIn: Bool
+    
     @State private var email = ""
     @State private var password = ""
     @State private var isLogin = true
@@ -70,7 +72,7 @@ struct LoginView: View {
                     return
                 }
                 
-                print("Inloggad")
+                isLoggedIn = true
             }
             
         } else {
@@ -82,7 +84,7 @@ struct LoginView: View {
                     return
                 }
                 
-                print("Konto skapat")
+                isLoggedIn = true
             }
         }
     }
