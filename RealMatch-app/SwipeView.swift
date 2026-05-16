@@ -9,6 +9,8 @@ import FirebaseDatabase
 
 struct UserModel: Identifiable {
     let id: String
+    let name: String
+    let age: String
     let images: [String]
 }
 
@@ -20,8 +22,6 @@ struct SwipeView: View {
     @State private var currentImageIndex = 0
     
     @State private var liked = false
-    
-    // 👇 MATCH TEXT STATE
     @State private var showMatchText = false
     
     var body: some View {
@@ -35,19 +35,18 @@ struct SwipeView: View {
                     .font(.title2)
                     .foregroundColor(.gray)
                 
-            } else {
+            } else if users.indices.contains(currentUserIndex) {
                 
                 let user = users[currentUserIndex]
-                let images = user.images
                 
                 ZStack {
                     
-                    // MARK: - Images
+                    // MARK: - IMAGES
                     TabView(selection: $currentImageIndex) {
                         
-                        ForEach(images.indices, id: \.self) { index in
+                        ForEach(user.images.indices, id: \.self) { index in
                             
-                            AsyncImage(url: URL(string: images[index])) { image in
+                            AsyncImage(url: URL(string: user.images[index])) { image in
                                 image
                                     .resizable()
                                     .scaledToFill()
@@ -67,9 +66,10 @@ struct SwipeView: View {
                             .stroke(Color.gray.opacity(0.3), lineWidth: 2)
                     )
                     
-                    // MARK: - Like Button
+                    // MARK: - LIKE BUTTON
                     VStack {
                         Spacer()
+                        
                         HStack {
                             Spacer()
                             
@@ -90,9 +90,19 @@ struct SwipeView: View {
                     }
                 }
                 
+                // MARK: - USER INFO (SAME STYLE AS PROFILEVIEW)
+                VStack(spacing: 5) {
+                    Text(user.name)
+                        .font(.title2)
+                        .bold()
+                    
+                    Text(user.age)
+                        .foregroundColor(.gray)
+                }
+                .padding(.top, 10)
+                
                 Spacer()
                 
-                // MARK: - Next Button
                 Button {
                     nextUser()
                 } label: {
@@ -109,7 +119,7 @@ struct SwipeView: View {
         .onAppear {
             fetchUsers()
         }
-        // MARK: - MATCH OVERLAY
+        
         .overlay(
             Group {
                 if showMatchText {
@@ -125,15 +135,15 @@ struct SwipeView: View {
                             .background(Color.blue.opacity(0.8))
                             .cornerRadius(15)
                     }
-                    .transition(.opacity)
                 }
             }
         )
         .animation(.easeInOut, value: showMatchText)
     }
     
-    // MARK: - FETCH USERS
+    // MARK: - FETCH USERS (SAME LOGIC AS PROFILEVIEW)
     func fetchUsers() {
+        
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
         let ref = Database.database().reference()
@@ -151,10 +161,31 @@ struct SwipeView: View {
                 
                 if userId == currentUserId { continue }
                 
-                if let images = data["images"] as? [String],
-                   !images.isEmpty {
+                let name = data["name"] as? String ?? ""
+                
+                var ageText = ""
+                
+                if let timestamp = data["birthDate"] as? Double {
                     
-                    loadedUsers.append(UserModel(id: userId, images: images))
+                    let date = Date(timeIntervalSince1970: timestamp)
+                    
+                    let years = Calendar.current.dateComponents([.year], from: date, to: Date()).year ?? 0
+                    
+                    ageText = "\(years) år"
+                }
+                
+                let images = data["images"] as? [String] ?? []
+                
+                if !images.isEmpty {
+                    
+                    loadedUsers.append(
+                        UserModel(
+                            id: userId,
+                            name: name,
+                            age: ageText,
+                            images: images
+                        )
+                    )
                 }
             }
             
@@ -164,82 +195,11 @@ struct SwipeView: View {
         }
     }
     
-    // MARK: - LIKE
     func toggleLike() {
         liked.toggle()
-        
-        if liked {
-            likeUser()
-        }
     }
     
-    // MARK: - SAVE LIKE + CHECK MATCH
-    func likeUser() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        guard !users.isEmpty else { return }
-        
-        let likedUserId = users[currentUserIndex].id
-        
-        let ref = Database.database().reference()
-        
-        // Save like
-        ref.child("likes")
-            .child(currentUserId)
-            .child(likedUserId)
-            .setValue(true)
-        
-        // Check match
-        checkMatch(likedUserId: likedUserId)
-    }
-    
-    // MARK: - CHECK MATCH
-    func checkMatch(likedUserId: String) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        let ref = Database.database().reference()
-        
-        ref.child("likes")
-            .child(likedUserId)
-            .child(currentUserId)
-            .observeSingleEvent(of: .value) { snapshot in
-            
-                if snapshot.exists() {
-                    createMatch(with: likedUserId)
-                }
-            }
-    }
-    
-    // MARK: - CREATE MATCH
-    func createMatch(with userId: String) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        let ref = Database.database().reference()
-        
-        let matchId = ref.child("matches").childByAutoId().key ?? UUID().uuidString
-        
-        let matchData: [String: Any] = [
-            "users": [currentUserId, userId],
-            "timestamp": Date().timeIntervalSince1970
-        ]
-        
-        ref.child("matches")
-            .child(matchId)
-            .setValue(matchData)
-        
-        // 👇 VISA TEXT
-        DispatchQueue.main.async {
-            showMatchText = true
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                showMatchText = false
-            }
-        }
-    }
-    
-    // MARK: - NEXT USER
     func nextUser() {
-        guard !users.isEmpty else { return }
-        
         liked = false
         currentImageIndex = 0
         
