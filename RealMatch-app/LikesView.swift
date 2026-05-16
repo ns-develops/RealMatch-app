@@ -12,6 +12,7 @@ import FirebaseDatabase
 struct MatchModel: Identifiable {
     let id: String
     let userId: String
+    let name: String
     let image: String
 }
 
@@ -47,10 +48,10 @@ struct LikesView: View {
                             .clipShape(Circle())
                             
                             VStack(alignment: .leading) {
-                                Text("Ny match ❤️")
+                                Text(match.name)
                                     .font(.headline)
                                 
-                                Text(match.userId)
+                                Text("Ny match ❤️")
                                     .font(.caption)
                                     .foregroundColor(.gray)
                             }
@@ -86,16 +87,16 @@ struct LikesView: View {
                     continue
                 }
                 
-                // kolla om jag är med i matchen
                 if users.contains(currentUserId) {
                     
                     let otherUserId = users.first { $0 != currentUserId } ?? ""
                     
-                    fetchUser(userId: otherUserId) { image in
+                    fetchUser(userId: otherUserId) { name, image in
                         
                         let match = MatchModel(
                             id: snap.key,
                             userId: otherUserId,
+                            name: name,
                             image: image
                         )
                         
@@ -109,8 +110,8 @@ struct LikesView: View {
         }
     }
     
-    // MARK: - FETCH USER IMAGE
-    func fetchUser(userId: String, completion: @escaping (String) -> Void) {
+    // MARK: - FETCH USER (NAME + IMAGE)
+    func fetchUser(userId: String, completion: @escaping (String, String) -> Void) {
         
         let ref = Database.database().reference()
         
@@ -118,15 +119,17 @@ struct LikesView: View {
             .child(userId)
             .observeSingleEvent(of: .value) { snapshot in
                 
-                guard let data = snapshot.value as? [String: Any],
-                      let images = data["images"] as? [String],
-                      let firstImage = images.first else {
-                    
-                    completion("")
+                guard let data = snapshot.value as? [String: Any] else {
+                    completion("Okänd", "")
                     return
                 }
                 
-                completion(firstImage)
+                let name = data["name"] as? String ?? "Okänd"
+                
+                let images = data["images"] as? [String] ?? []
+                let firstImage = images.first ?? ""
+                
+                completion(name, firstImage)
             }
     }
 }

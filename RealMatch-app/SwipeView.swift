@@ -90,7 +90,7 @@ struct SwipeView: View {
                     }
                 }
                 
-                // MARK: - USER INFO (SAME STYLE AS PROFILEVIEW)
+                // MARK: - USER INFO
                 VStack(spacing: 5) {
                     Text(user.name)
                         .font(.title2)
@@ -120,6 +120,7 @@ struct SwipeView: View {
             fetchUsers()
         }
         
+        // MARK: - MATCH OVERLAY
         .overlay(
             Group {
                 if showMatchText {
@@ -141,7 +142,7 @@ struct SwipeView: View {
         .animation(.easeInOut, value: showMatchText)
     }
     
-    // MARK: - FETCH USERS (SAME LOGIC AS PROFILEVIEW)
+    // MARK: - FETCH USERS
     func fetchUsers() {
         
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
@@ -195,8 +196,76 @@ struct SwipeView: View {
         }
     }
     
+    // MARK: - LIKE LOGIC
     func toggleLike() {
         liked.toggle()
+        
+        if liked {
+            likeUser()
+        }
+    }
+    
+    func likeUser() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        guard users.indices.contains(currentUserIndex) else { return }
+        
+        let likedUserId = users[currentUserIndex].id
+        
+        let ref = Database.database().reference()
+        
+        // A likes B
+        ref.child("likes")
+            .child(currentUserId)
+            .child(likedUserId)
+            .setValue(true)
+        
+        // check if B liked A
+        checkMatch(likedUserId: likedUserId)
+    }
+    
+    func checkMatch(likedUserId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        let ref = Database.database().reference()
+        
+        ref.child("likes")
+            .child(likedUserId)
+            .child(currentUserId)
+            .observeSingleEvent(of: .value) { snapshot in
+            
+                if snapshot.exists() {
+                    createMatch(with: likedUserId)
+                }
+            }
+    }
+    
+    func createMatch(with userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        let ref = Database.database().reference()
+        
+        let matchId = ref.child("matches").childByAutoId().key ?? UUID().uuidString
+        
+        let matchData: [String: Any] = [
+            "users": [currentUserId, userId],
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        
+        ref.child("matches")
+            .child(matchId)
+            .setValue(matchData)
+        
+        showMatch()
+    }
+    
+    func showMatch() {
+        DispatchQueue.main.async {
+            showMatchText = true
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                showMatchText = false
+            }
+        }
     }
     
     func nextUser() {
