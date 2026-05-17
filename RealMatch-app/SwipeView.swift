@@ -162,51 +162,81 @@ struct SwipeView: View {
         
         let ref = Database.database().reference()
         
-        ref.child("users").observeSingleEvent(of: .value) { snapshot in
+        // 👇 HÄMTA MATCHES FÖRST
+        ref.child("matches").observeSingleEvent(of: .value) { matchSnapshot in
             
-            var loadedUsers: [UserModel] = []
+            var matchedUserIds: [String] = []
             
-            for child in snapshot.children {
+            for child in matchSnapshot.children {
                 
                 guard let snap = child as? DataSnapshot,
-                      let data = snap.value as? [String: Any] else { continue }
-                
-                let userId = snap.key
-                
-                if userId == currentUserId { continue }
-                
-                let name = data["name"] as? String ?? ""
-                let bio = data["bio"] as? String ?? ""
-                
-                var ageText = ""
-                
-                if let timestamp = data["birthDate"] as? Double {
-                    
-                    let date = Date(timeIntervalSince1970: timestamp)
-                    
-                    let years = Calendar.current.dateComponents([.year], from: date, to: Date()).year ?? 0
-                    
-                    ageText = "\(years) år"
+                      let data = snap.value as? [String: Any],
+                      let users = data["users"] as? [String] else {
+                    continue
                 }
                 
-                let images = data["images"] as? [String] ?? []
-                
-                if !images.isEmpty {
+                // 👇 Om current user finns i matchen
+                if users.contains(currentUserId) {
                     
-                    loadedUsers.append(
-                        UserModel(
-                            id: userId,
-                            name: name,
-                            age: ageText,
-                            bio: bio,
-                            images: images
-                        )
-                    )
+                    for userId in users {
+                        if userId != currentUserId {
+                            matchedUserIds.append(userId)
+                        }
+                    }
                 }
             }
             
-            DispatchQueue.main.async {
-                self.users = loadedUsers
+            // 👇 HÄMTA USERS
+            ref.child("users").observeSingleEvent(of: .value) { snapshot in
+                
+                var loadedUsers: [UserModel] = []
+                
+                for child in snapshot.children {
+                    
+                    guard let snap = child as? DataSnapshot,
+                          let data = snap.value as? [String: Any] else { continue }
+                    
+                    let userId = snap.key
+                    
+                    // 👇 SKIPPA SIG SJÄLV
+                    if userId == currentUserId { continue }
+                    
+                    // 👇 SKIPPA MATCHADE USERS
+                    if matchedUserIds.contains(userId) { continue }
+                    
+                    let name = data["name"] as? String ?? ""
+                    let bio = data["bio"] as? String ?? ""
+                    
+                    var ageText = ""
+                    
+                    if let timestamp = data["birthDate"] as? Double {
+                        
+                        let date = Date(timeIntervalSince1970: timestamp)
+                        
+                        let years = Calendar.current.dateComponents([.year], from: date, to: Date()).year ?? 0
+                        
+                        ageText = "\(years) år"
+                    }
+                    
+                    let images = data["images"] as? [String] ?? []
+                    
+                    if !images.isEmpty {
+                        
+                        loadedUsers.append(
+                            UserModel(
+                                id: userId,
+                                name: name,
+                                age: ageText,
+                                bio: bio,
+                                images: images
+                            )
+                        )
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self.users = loadedUsers
+                }
             }
         }
     }
