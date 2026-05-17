@@ -11,6 +11,7 @@ struct UserModel: Identifiable {
     let id: String
     let name: String
     let age: String
+    let bio: String
     let images: [String]
 }
 
@@ -91,13 +92,25 @@ struct SwipeView: View {
                 }
                 
                 // MARK: - USER INFO
-                VStack(spacing: 5) {
+                VStack(spacing: 8) {
+                    
                     Text(user.name)
                         .font(.title2)
                         .bold()
                     
                     Text(user.age)
                         .foregroundColor(.gray)
+                    
+                    // 👇 BIO
+                    if !user.bio.isEmpty {
+                        
+                        Text(user.bio)
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 30)
+                            .padding(.top, 5)
+                    }
                 }
                 .padding(.top, 10)
                 
@@ -163,6 +176,7 @@ struct SwipeView: View {
                 if userId == currentUserId { continue }
                 
                 let name = data["name"] as? String ?? ""
+                let bio = data["bio"] as? String ?? ""
                 
                 var ageText = ""
                 
@@ -184,6 +198,7 @@ struct SwipeView: View {
                             id: userId,
                             name: name,
                             age: ageText,
+                            bio: bio,
                             images: images
                         )
                     )
