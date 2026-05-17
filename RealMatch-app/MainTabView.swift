@@ -23,15 +23,11 @@ struct MainTabView: View {
             
             LikesView()
                 .tabItem {
-                    Image(systemName: "heart.fill")
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
                     Text("Likes")
                 }
             
-            ChatListView()
-                .tabItem {
-                    Image(systemName: "message.fill")
-                    Text("Chats")
-                }
+         
             
             ProfileView(isLoggedIn: $isLoggedIn)
                 .tabItem {

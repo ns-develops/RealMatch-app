@@ -87,18 +87,26 @@ struct ProfileView: View {
             }
             .padding(.horizontal)
             
+            Spacer()
+        }
+        
+        // 👇 LOGOUT KNAPP UPPE TILL HÖGER
+        .overlay(alignment: .topTrailing) {
+            
             Button {
                 try? Auth.auth().signOut()
                 isLoggedIn = false
             } label: {
-                Text("Logga ut")
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red)
-                    .cornerRadius(10)
+                
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                    .font(.system(size: 16))
+                    .foregroundColor(.red)
+                    .padding(10)
+                    .background(Color.white)
+                    .clipShape(Circle())
+                    .shadow(radius: 3)
             }
-            .padding(.horizontal)
+            .padding()
         }
         
         .onAppear {
@@ -245,6 +253,7 @@ struct ProfileView: View {
                             DispatchQueue.main.async {
                                 self.images.append(image)
                             }
+                            
                         }
                         
                     }.resume()
