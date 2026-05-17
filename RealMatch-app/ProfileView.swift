@@ -20,74 +20,94 @@ struct ProfileView: View {
     @State private var name = ""
     @State private var age = ""
     
+    // 👇 BIO
+    @State private var bio = ""
+    
     var body: some View {
         
-        VStack(spacing: 20) {
+        ScrollView {
             
-            Text("Profile")
-                .font(.largeTitle)
-                .bold()
-            
-            // 👇 USER INFO
-            VStack(spacing: 5) {
-                Text(name)
-                    .font(.title2)
+            VStack(spacing: 20) {
+                
+                Text("Profile")
+                    .font(.largeTitle)
                     .bold()
                 
-                Text(age)
-                    .foregroundColor(.gray)
-            }
-            
-            PhotosPicker(selection: $selectedItems,
-                         maxSelectionCount: 4,
-                         matching: .images) {
-                
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 15) {
+                // 👇 USER INFO
+                VStack(spacing: 5) {
+                    Text(name)
+                        .font(.title2)
+                        .bold()
                     
-                    ForEach(0..<4, id: \.self) { index in
+                    Text(age)
+                        .foregroundColor(.gray)
+                }
+                
+                PhotosPicker(selection: $selectedItems,
+                             maxSelectionCount: 4,
+                             matching: .images) {
+                    
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 15) {
                         
-                        ZStack {
+                        ForEach(0..<4, id: \.self) { index in
                             
-                            if index < images.count {
+                            ZStack {
                                 
-                                Image(uiImage: images[index])
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(height: 150)
-                                    .clipped()
-                                    .cornerRadius(12)
-                                
-                            } else {
-                                
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 150)
-                                    .overlay(
-                                        Text("Bild \(index + 1)")
-                                    )
+                                if index < images.count {
+                                    
+                                    Image(uiImage: images[index])
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(height: 150)
+                                        .clipped()
+                                        .cornerRadius(12)
+                                    
+                                } else {
+                                    
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(height: 150)
+                                        .overlay(
+                                            Text("Bild \(index + 1)")
+                                        )
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal)
+                }
+                
+                // 👇 BIO UNDER BILDERNA
+                VStack(alignment: .leading, spacing: 8) {
+                    
+                    Text("Om mig")
+                        .font(.headline)
+                    
+                    TextEditor(text: $bio)
+                        .frame(height: 120)
+                        .padding(10)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(12)
                 }
                 .padding(.horizontal)
+                
+                Button {
+                    uploadImages()
+                } label: {
+                    Text("Spara profil")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(10)
+                }
+                .padding(.horizontal)
+                
+                Spacer()
             }
-            
-            Button {
-                uploadImages()
-            } label: {
-                Text("Spara bilder")
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
-            }
-            .padding(.horizontal)
-            
-            Spacer()
         }
         
         // 👇 LOGOUT KNAPP UPPE TILL HÖGER
@@ -142,7 +162,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - LOAD USER (NAME + AGE)
+    // MARK: - LOAD USER
     func loadUser() {
         
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -158,6 +178,7 @@ struct ProfileView: View {
                 }
                 
                 self.name = data["name"] as? String ?? ""
+                self.bio = data["bio"] as? String ?? ""
                 
                 if let timestamp = data["birthDate"] as? Double {
                     
@@ -170,7 +191,7 @@ struct ProfileView: View {
             }
     }
     
-    // MARK: - UPLOAD IMAGES
+    // MARK: - UPLOAD IMAGES + BIO
     func uploadImages() {
         
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -215,7 +236,8 @@ struct ProfileView: View {
             db.child("users")
                 .child(userId)
                 .updateChildValues([
-                    "images": uploadedURLs
+                    "images": uploadedURLs,
+                    "bio": bio
                 ])
             
             self.imageURLs = uploadedURLs
