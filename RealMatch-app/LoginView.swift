@@ -3,9 +3,12 @@
 //  RealMatch-app
 //
 //  Created by Natali Samaan on 2026-05-16.
+//
+
 import SwiftUI
 import FirebaseAuth
 import FirebaseDatabase
+import Combine
 
 struct LoginView: View {
     
@@ -20,64 +23,106 @@ struct LoginView: View {
     @State private var isLogin = true
     @State private var errorMessage = ""
     
+    // Bakgrundsbilder
+    @State private var currentImage = 0
+    
+    let images = ["item", "item2", "item3"]
+    
+    let timer = Timer.publish(every: 1, on: .main, in: .common)
+        .autoconnect()
+    
     var body: some View {
         
-        VStack(spacing: 20) {
+        ZStack {
             
-            Text(isLogin ? "Logga In" : "Skapa Konto")
-                .font(.largeTitle)
-                .bold()
+            // BAKGRUNDSBILD
+            Image(images[currentImage])
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.5), value: currentImage)
+                .onReceive(timer) { _ in
+                    currentImage = (currentImage + 1) % images.count
+                }
             
-            TextField("Email", text: $email)
-                .textInputAutocapitalization(.never)
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
+            // Mörk overlay
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
             
-            SecureField("Lösenord", text: $password)
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
-            
-            // 👇 Endast vid registrering
-            if !isLogin {
+            // LOGIN UI
+            VStack(spacing: 16) {
                 
-                TextField("Namn", text: $name)
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                
-                DatePicker(
-                    "Födelsedatum",
-                    selection: $birthDate,
-                    displayedComponents: .date
-                )
-                .padding()
-            }
-            
-            Button {
-                handleAuth()
-            } label: {
-                Text(isLogin ? "Logga In" : "Registrera")
+                Text(isLogin ? "Logga In" : "Skapa Konto")
+                    .font(.largeTitle)
+                    .bold()
                     .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
+                    .padding(.bottom, 10)
+                
+                TextField("Email", text: $email)
+                    .textInputAutocapitalization(.never)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: 320)
+                    .background(Color.white.opacity(0.9))
+                    .cornerRadius(14)
+                
+                SecureField("Lösenord", text: $password)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: 320)
+                    .background(Color.white.opacity(0.9))
+                    .cornerRadius(14)
+                
+                // Endast vid registrering
+                if !isLogin {
+                    
+                    TextField("Namn", text: $name)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: 320)
+                        .background(Color.white.opacity(0.9))
+                        .cornerRadius(14)
+                    
+                    DatePicker(
+                        "Födelsedatum",
+                        selection: $birthDate,
+                        displayedComponents: .date
+                    )
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: 320)
+                    .background(Color.white.opacity(0.9))
+                    .cornerRadius(14)
+                }
+                
+                Button {
+                    handleAuth()
+                } label: {
+                    Text(isLogin ? "Logga In" : "Registrera")
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                        .frame(width: 320)
+                        .padding(.vertical, 14)
+                        .background(Color.blue)
+                        .cornerRadius(14)
+                }
+                
+                Button {
+                    isLogin.toggle()
+                } label: {
+                    Text(isLogin ?
+                         "Har du inget konto? Registrera" :
+                         "Har du redan konto? Logga in")
+                        .foregroundColor(.white)
+                        .font(.footnote)
+                }
+                
+                Text(errorMessage)
+                    .foregroundColor(.red)
+                    .font(.footnote)
             }
-            
-            Button {
-                isLogin.toggle()
-            } label: {
-                Text(isLogin ?
-                     "Har du inget konto? Registrera" :
-                     "Har du redan konto? Logga in")
-            }
-            
-            Text(errorMessage)
-                .foregroundColor(.red)
+            .padding(.horizontal, 24)
         }
-        .padding()
     }
     
     func handleAuth() {
@@ -110,7 +155,6 @@ struct LoginView: View {
                 
                 let ref = Database.database().reference()
                 
-                // ✅ timestamp (korrekt sätt att lagra datum)
                 let timestamp = birthDate.timeIntervalSince1970
                 
                 ref.child("users")
