@@ -3,6 +3,8 @@
 //  RealMatch-app
 //
 //  Created by Natali Samaan on 2026-05-16.
+//
+
 import SwiftUI
 import PhotosUI
 import FirebaseAuth
@@ -60,16 +62,17 @@ struct ProfileView: View {
                                     
                                     Image(uiImage: images[index])
                                         .resizable()
-                                        .scaledToFill()
-                                        .frame(height: 150)
-                                        .clipped()
+                                        .scaledToFit()
+                                        .frame(height: 110)
+                                        .frame(maxWidth: .infinity)
+                                        .background(Color.gray.opacity(0.1))
                                         .cornerRadius(12)
                                     
                                 } else {
                                     
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(Color.gray.opacity(0.2))
-                                        .frame(height: 150)
+                                        .frame(height: 110)
                                         .overlay(
                                             Text("Bild \(index + 1)")
                                         )
